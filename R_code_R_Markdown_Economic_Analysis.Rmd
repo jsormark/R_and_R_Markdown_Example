@@ -1,0 +1,165 @@
+---
+title: Research and Development Investment Study
+author: "John Sormark"
+
+date: "7/7/2024"
+output:
+  html_document: default
+  header-includes: \usepackage{color}
+fontsize: 12pt
+margin: 1in
+---
+<!--
+
+-->
+
+```{r setup, echo=FALSE, message=F, warning=F, include=FALSE}
+
+#==============================================================================
+#   This chunk will be used for every assignment
+#==============================================================================
+
+  # Clear the working space
+    rm(list = ls())
+
+  #Set working directory
+#setwd("C:/Users/jsorm/Documents/Santa_Clara_U/Econ_2509")
+
+### Load the packages (all must have been installed)
+    library(tidyverse)
+    library(doBy)
+    library(foreign)
+    library(knitr)
+    library(lmtest)
+    library(readstata13)
+    library(sandwich)
+    library(stargazer)
+    library(AER)
+    library(gdata)
+    library(wooldridge)
+    library(openintro)
+
+cse=function(reg) {
+        rob=sqrt(diag(vcovHC(reg, type="HC1")))
+        return(rob)
+        }
+
+```
+
+This report has been compiled in order to examine a collection of 32 firms in the chemical industry collected from Businessweek R&D Scoreboard (Oct 25, 1991). The objective of this analysis is to investigate the relationship between research and development budgets and the company size, defined based on sales or profits. The analysis will provide input and conclusions as it pertains to the data and the studied relationship. We are looking to answer the question "Do larger firms invest more in research and development (R&D) budgets?"
+
+```{r data, echo=FALSE, warning=FALSE, include=FALSE}
+
+# loading the data from wooldridge R package
+data(rdchem)
+# summarizing the data to take a look at the data set before analysis
+str(rdchem)
+
+```
+
+## Descriptive Statistics
+
+```{r stargazer, echo=FALSE, warning=FALSE, comment="" }
+# We create a table of descriptive statistics for the R&D, sales and profits.
+
+stargazer(rdchem[c("rd", "sales", "profits")], type="text", digits=2 ,summary.stat=c("n", "mean", "median", "sd", "min", "max"), title="R&D, Sales and Profits Descriptive Statistics", flip=FALSE, covariate.labels=c("R&D", "Sales", "Profits"))
+```
+
+The rdchem data contains information 32 chemical firms sampled from the Businessweek R&D Scoreboard. Based on the table of descriptive statistics we can make the following inferences about the data. (Assignment - Step 2)
+
+A. Comparing the mean relative to the median we can make conclusions on whether or not the data is skewed. We note that the median for R&D, Sales and Profits is lower than the mean, indicating that the distribution of all these variables are right-skewed (positively skewed). This tells us that there are a few values that are significantly higher than the rest and can be considered outliers.Provided the variables are right-skewed we would expect a higher mean and increase in the standard deviation, as the data shows.
+
+B. Looking at the sample distribution of the three variables we can infer the following. For R&D, the data suggests that there are a few firms that have very high R&D values, as such, they are pulling the mean up. This is also supported by the high standard deviation. As we will further investigate in this report providing a visual representation, a histogram, will give a visual sense of the data distribution and its skewness. The data suggests that the distribution for Sales and Profits have a similar sample distribution as noted with R&D, also both supported by the high standard deviation. The high standard deviation for all the variables tells us that the values are spread out over a wide range. Additional analysis calculating the coefficient of variation, standard deviation divided by mean, (R&D: 2.12, Sales: 2.00 and Profits: 2.24) supports this high degree of variability. Comparatively, it can be concluded that the Profits, compared to its mean, are spread out over a wider range and that Sales, compared to its mean, is less spread out.
+
+```{r images1, echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+
+# Histogram of R&D
+ggplot(rdchem) + geom_histogram(aes(x=rd), col="blue", binwidth = 6) + 
+labs(title = "R&D Budget Snapshot") +
+xlab("R&D Budget in USD") +
+ylab("Total Firm Count") +
+theme(plot.title = element_text(hjust = 0.5))
+```
+
+The histogram of the rd variable confirms that the distribution of rd (R&D budget) is positively skewed (right-skewed). That is, there are only a few firms that have very large R&D budgets while most of the firms have small R&D budgets. Provided the visual representation it can be noted that two of the firms can be considered outliers as their budgets are significantly higher than the majority of the budgets. As the data is skewed there may be implications on the statistical analyses since many techniques assume that the data is normally distributed. (Assignment - Step 3)
+
+```{r images2, echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+# Two basic scatter plots, one of rd against Sales and a second of rd against Profits where each data point is a representation of one of the 32 firms.
+#rd against Sales scatter plot
+ggplot(rdchem, aes(x=sales, y=rd)) + geom_point(col="blue") + labs(title = "Sales and R&D Budget", x = "Total Sales", y = "R&D Budget") + stat_smooth(method = "lm", col = "red", se=FALSE) + theme(plot.title = element_text(hjust = 0.5))
+#rd against Profits scatter plot
+ggplot(rdchem, aes(x=profits, y=rd)) + geom_point(col="blue") + labs(title = "Profits and R&D Budget", x = "Total Profit", y = "R&D Budget") + stat_smooth(method = "lm", col = "red", se=FALSE) + theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+The scatter plot of sales against R&D suggests a positive correlation between these two variables provided the upwards slope. It can also be noted that the strength of correlation between the two variables is stronger at the lower values compared to higher values. Lastly, the visual representation identifies outliers, two in total, in the data set. (Assignment - Step 4)
+
+The scatter plot of profits against R&D also suggests a positive correlation between these two variables provided the upwards slope. The strength of correlation between the two variables follows the same trend, stronger correlation at lower values, seen in the sales scatter plot but is a little more spread out from the regression line. Lastly, the visual representation also identifies the same two outliers in the data set. (Assignment - Step 4) 
+
+
+## Regressions and Statistical Analysis
+
+```{r regression1, echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+# Runs a regression of R&D on Sales and R&D on Profits on the rdchem data.
+
+#Running regression analysis
+cse=function(reg) {
+  rob=sqrt(diag(vcovHC(reg, type="HC1")))
+  return(rob)
+}
+
+#Run the regression of R&D on profits.
+lrProfits=lm(rd~profits, data=rdchem)
+
+#Run the regression of R&D on sales.
+lrSales=lm(rd~sales, data=rdchem)
+
+stargazer(lrProfits, lrSales, se=list(cse(lrProfits), cse(lrSales)),
+          title="Regress Results for R&D on Profits and Sales", type="text",
+          star.cutoffs=NA, df=FALSE, digits=3)
+#P-value calculation for R&D on profits. (internal check)
+#2*pnorm(12, mean=0, sd=1)
+#P-value calculation for R&D on sales. (internal check)
+#2*pnorm(8.2, mean=0, sd=1)
+```
+Based on the regression results and statistical analysis the following interpretations can be made, (Assignment - Step 5-6)
+
+A. For the first model, R&D regressed on Profits, the estimated coefficient of 0.372 means that for every additional US dollar in profits, it is expected that the R&D budget will increase by $0.372. For the second model, R&D regressed on Sales, the estimated coefficient of 0.041 means that for every additional US dollar in sales, it is expected that the R&D budget will increase by $0.041. It is assumed for both models that all other variables are held constant and there is a linear relationship between the dependent (R&D) and independent variables (Sales or Profits). 
+
+B. The estimated coefficients are statistically significant at 10%, 5% and 1% significant levels. The t-statistic for the first model, R&D regressed on Profits, equaled 12 and for the second model,  R&D regressed on Sales, equaled 8.2 which were much greater than any of the critical values, 2.56 (1% p-value), 1.96 (5% p-value) and 1.64 (10% p-value). Since both of the t-statistic values are greater than these critical values we would reject the null hypothesis that the true coefficient is zero for both models. It can be concluded that both Sales and Profits have a significant effect on the R&D budget (assuming all other variables are held constant).
+
+C. In both models the p-value associated with the t-statistic is essentially zero, 2^-16. The p-values being much less than the 0.01, 0.05 and 0.1 values we would reject the null hypothesis that the true coefficient for sales or profits is zero, in other words that the independent variable has no effect on the dependent (R&D) variable.
+
+D. The 95% confidence interval for the slope coefficients are as follows. For the first model, R&D regressed on Profits, is in the range of [0.3112, 0.4328] and for the second model, R&D regressed on Sales, is in the range of [0.0312, 0.0508].
+
+E. The R-squared value for the first model, R&D regressed on Profits, is 0.907 and for the second model, R&D regressed on Sales, is 0.902. This means that 90.7%, and 90.2% of the variation in R&D can be explained by profits, and sales respectively. The R-squared value represents the portion of the variance in the dependent variable (R&D) that is predictable by the independent variables, in this case Profits and Sales.
+
+```{r regression2, echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+# creates a new data set rdchem_2 representing firms having rd values below 1000.
+rdchem_2=subset(rdchem, rd < 1000)
+
+#Run the regression of R&D on profits.
+lrProfits_2=lm(rd~profits, data=rdchem_2)
+
+#Run the regression of R&D on sales.
+lrSales_2=lm(rd~sales, data=rdchem_2)
+
+stargazer(lrProfits_2, lrSales_2, se=list(cse(lrProfits_2), cse(lrSales_2)),
+          title="Regress Results for R&D (<1000) on Profits and Sales", type="text",
+          star.cutoffs=NA, df=FALSE, digits=3)
+```
+
+As expected, when we remove the outliers we can observe the following when compared to the prior results. (Assignment - Step 7)
+
+A.The estimated coefficients for both profits and sales have increased. The coefficient for Profits resulted in 0.493 a 0.121 increase, meaning that there is a larger effect on the R&D budget, $0.493 spent on R&D for every additional dollar in profits. For the Sales coefficient it had a slightly higher result of 0.048 versus the 0.041, a $0.07 increase for every additional dollar in sales compared to the first model. 
+
+B. Secondly, it can be said that if we were to replicate the study many times with different samples the variability that we have in our regression model has increased. This means that there is now more uncertainty around the estimated coefficients when compared to the prior model. The standard error values equated to 0.150 for profits regress and 0.013 for the sales regress.
+
+C. The R-squared values decreased significantly compared to the first model. This means that a smaller proportion of the variability in the R&D budget is being explained by the profits and sales. 
+
+D. Residual standard error has decreased for both models. Provided the formulation, observed minus predicted, it can be inferred that the residuals are smaller on average in the new model. As such, it can be said that the R&D is better predicted in the new model.
+
+E. It should also be noted that the removal of the two outliers does not affect the statistical tests/analysis used as the number of observations of 30 is considered large enough for the Central Limit Theorem (CLT) to hold. 
+
+In conclusion, to answer our objective question, do larger firms invest more in R&D? The results show that when we removed two of the outliers, two much larger firms (based on the sales/profit volumes), there was an increase in the amount spent on R&D per dollar of sales or profits. As such, we can conclude that larger firms do not invest more in R&D than smaller firms in relation to the profit or sales amounts.
+
