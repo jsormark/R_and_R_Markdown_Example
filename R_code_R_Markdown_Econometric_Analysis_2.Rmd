@@ -1,0 +1,176 @@
+---
+title: Income and Democracy Analysis
+author: "John Sormark"
+
+date: "7/23/2024"
+output:
+  html_document: default
+  header-includes: \usepackage{color}
+fontsize: 12pt
+margin: 1in
+---
+<!--
+
+-->
+
+```{r setup, echo=FALSE, message=F, warning=F, include=FALSE}
+
+#==============================================================================
+#   This chunk will be used for every assignment
+#==============================================================================
+
+  # Clear the working space
+    rm(list = ls())
+
+   #Set working directory
+#setwd("your folder path")
+
+### Load the packages (all must have been installed)
+     library(tidyverse)
+    library(doBy)
+    library(foreign)
+    library(knitr)
+    library(lmtest)
+    library(readstata13)
+    library(sandwich)
+    library(stargazer)
+    library(AER)
+    library(gdata)
+    library(wooldridge)
+    library(openintro)
+
+
+cse=function(reg) {
+        rob=sqrt(diag(vcovHC(reg, type="HC1")))
+        return(rob)
+        }
+
+```
+
+This report will provide an in depth analysis on the causal relationship between a country being a democracy and income per capita. The report will utilize a data sample from 1995 pertaining to economic and demographic data for 93 countries from Stock and Watson (2019). The research question we are looking to answer in this report is, does being a democracy make countries richer? The report will provide a conclusion by presenting and analyzing descriptive statistics, graphs, conducting regression analyses and performing a hypothesis test.
+
+```{r data, echo=FALSE, warning=FALSE, include=FALSE}
+
+# So, we first give an instruction to get the data we want. This chuck of R code is not include in the RMarkdown report because include=FALSE in the setting above. Even if it is not included, it is essential for the R code to know the data before you can plot anything. 
+
+# Reading CSV data file. Assignment Part 1 #1.
+incdemo=read.csv("incdemo1995.CSV", header=T, sep=",")
+
+# Make sure that your Rmd code is in the same folder as the data and make sure that the extension of the data is still .CSV after download. Some computers change the extension automatically to the default spreadsheet if you open it after download.
+```
+## Descriptive Statistics, Definitions & Graph
+
+```{r stargazer, echo=FALSE, warning=FALSE, comment="" }
+
+#Descriptive statistical analysis of identified variables. Assignment Part 1 #2
+stargazer(incdemo[c("log_gdppc", "dem_ind", "log_pop", "educ", "age_median")], type="text", digits=2 ,summary.stat=c("n", "mean", "median", "sd", "min", "max"), title="Income and Democracy Descriptive Statistics", flip=FALSE, covariate.labels=c("log gdppc", "dem ind", "log pop", "educ", "age median"))
+
+```
+
+The incdemo data contains economic and demographic information of 93 countries sampled from a 1995 sample data set from Stock and Watson's Introduction to Econometrics. Based on the table of descriptive statistics the following metrics are defined and further analyzed: 
+- log_dppc - the logarithm of real GDP per capita (1995).
+- dem_ind - the index of democracy measured as the Freedom House Political Rights Index (2000). Metric is from 0 to 1 noting this is likely a percentage. 
+- log_pop - the logarithm of population (measured in thousands, 1995).
+- educ - the average years of education for adults (25 yrs and older, 1995).
+- age_median - the median age (1995).   
+
+The following inferences can be made about the data. (Part 1 #2)
+
+
+A. Looking at the averages of the data set and comparing them to the median we can conclude that the log of real gdp per capita has a relative symmetric distribution. This symmetric distribution is also the case for the log of population. In terms of the democracy index, this relationship suggests that the data has a negatively/left-skewed distribution, meaning that more countries have a higher democracy index. Lastly, the education and age_median metrics suggest a positively/right skewed distribution, meaning there are more countries with fewer years of education and younger populations, pulling the mean upwards. The skewed datasets identify that there are outliers present in the data set for these variables.  
+
+```{r images1, echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+
+# creates a scatterplot of log of real GDP per capita against the democracy index. I added a text size input as well so that the country labels would fit better and not overlap, unfortunately there is still some visual distortions of the country labels. Assignment Part 1 #3
+ggplot(incdemo, aes(x=log_gdppc, y=dem_ind)) + geom_point(col="blue") + geom_text(aes(label=country), hjust=1, vjust=1, size=2) +
+labs(title = "Index of Democracy verses Logarithm of Real GDP per Capita", x = "Log GDPPC", y = "Index of Democracy") + geom_smooth(method = "lm", col = "red", se=FALSE)
+
+```
+
+Part 1 #3. The scatter plot of log of real GDP per capita against the democracy index suggests that there is a strong positive correlation/relationship between these two variables provided the upward slope. Additionally, as the log GDP per capita increases there is a stronger correlation between the two variables provided the data points are scatter closer to the regression line compared to the lower values. 
+
+Note: label text size input was put to a minimum so that the country labels would fit better on the graph and not overlap, unfortunately there is still some visual distortions of the country labels.
+
+```{r images2, echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+
+```
+## Income and Democracy Regression Analysis
+```{r regression1, echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+
+# Runs a simple regression of log of real GDP per capita on the democracy index. Assignment Part 2 #4
+regr1<-lm(log_gdppc~dem_ind, data=incdemo)
+# Runs a multiple regressions of log of real GDP per capita on the democracy index, log of population, education and median age (variations of, as noted in formulations).
+regr2<- lm(log_gdppc~dem_ind+log_pop, data=incdemo)
+regr3<-lm(log_gdppc~dem_ind+log_pop+educ, data=incdemo)
+regr4<-lm(log_gdppc~dem_ind+log_pop+educ+age_median, data=incdemo)
+
+# displays the regression results
+stargazer(regr1, regr2, regr3, regr4, se=list(cse(regr1), cse(regr2), cse(regr3), cse(regr4)), 
+        title="Income and Democracy Regression Results", type="text", 
+        star.cutoffs=NA, df=FALSE, digits=3, omit.stat=c( "f"))
+```
+
+Part 2 #4. Interpretation Based on the Democracy Index
+
+Interpreting the results based on the variable of interest, the democracy index, we can make the following conclusions.
+
+A. When comparing the statistical difference across the four regressions we do see differences. The t-statistic for the 1st and 2nd model amount to 8.04 and 7.94, suggesting that the variable has an affect on the dependent variable. This is strong evidence that we would reject the null hypothesis and that these variables are statistically significant predictors of the dependent variable, real GDP. Comparatively, models 3 and 4 have respective t-statistic values of 2.42 and 0.71, in both of these cases we would fail to reject the null hypothesis at a 99% confidence interval (both less than<2.576). This provides us insight that these variables are not statistically significant, model 4 being worse than model 3, predictors of the dependent variable, not statistically different from zero at a 99% confidence level. Overall we see that as more variables are added to the model the effect of the democracy index on the log GDP per capita decreases.
+
+B. In terms of omitted variable bias there is evidence of an upward bias when comparing model 2 with model 3 and model 4 provided the coefficients are reduced and a downward bias from model 1 to 2. We can also note that the effect of log_pop on the log gdp per capita, holding all other variables constant, if we were to increase the population by 1,000 we would expect the GDP per capita to reduce by .013%. 
+
+C. The fit of the regression increases across the models. As such, we can conclude that the model's ability to predict the dependent variable, GDP per capita, improves with the additional variables, but are fairly the same from Model 1 to 2. Results showed, adjusted R squared values for the models 1-4 to be, 0.381, 0.376, 0.764 and 0.827. This improvement can be seen by looking at the R squared values for each of the models, which represents the proportion fo the variance in the dependent variable that can be predicted from the independent variables.
+
+```{r test, echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+#Input to run command predict of the regression results with the terms input below. Part 2 #6
+
+#Creating the new data frame with the updated values for the predict function. 
+newpredict1 <- data.frame(dem_ind = 1, log_pop = log(300000), educ = 12, age_median = 35)
+
+newpredict2 <- data.frame(dem_ind = 0, log_pop = log(300000), educ = 12, age_median = 35)
+
+#Executing the predictions
+prediction1 <- predict(regr4, newdata = newpredict1)
+prediction2 <- predict(regr4, newdata = newpredict2)
+
+#Output the results.
+print(paste("The predicted log of real GDP per capita with a democracy index equal to one:", prediction1))
+print(paste("The predicted log of real GDP per capita with a democracy index equal to zero:", prediction2))
+
+
+```
+
+Part 2 #6. Regression results and predict command utilization provided the following outcomes for the predicted log of real GDP per capita with a democracy index equal to 1 or 0. The predicted real GDP per capita with a democracy index equal to one equated to 29,917.0 and the predicted real GDP per capita with a democracy index equal to zero equated to 25448.6.
+
+```{r images3, echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+
+#Exponentiating the results to convert predictions of log real GDP per capita to real GDP per capita. Part 2 #7
+log_prediction1 <- predict(regr4, newdata = newpredict1)
+log_prediction2 <- predict(regr4, newdata = newpredict2)
+
+#Accounting for correct units of scale.
+prediction1 <- exp(log_prediction1)
+prediction2 <- exp(log_prediction2)
+
+#Output for the predictions and calculated difference.
+print(paste("The predicted real GDP per capita with a democracy index equal to one:", prediction1))
+print(paste("The predicted real GDP per capita with a democracy index equal to zero:", prediction2))
+
+difference <- prediction1 - prediction2
+print(paste("Calculated difference in the predicted real GDP per capita between a democracy index of one and zero:", difference))
+
+```
+
+Part 2 #7. The calculated difference in the predicted real GDP per capita between a democracy index of one and zero equates to 4468.4. This result tells us that when holding all other variables constant changing the democracy index from 0 to 1 will increase the real GDP per capita by about 4,468. 
+
+```{r images4, echo=FALSE, warning=FALSE, message=FALSE, comment=""}
+
+# Hypothesis test on updated regression variables, as noted. Part 2 #8
+regr5<-lm(log_gdppc~dem_ind+educ, data=incdemo)
+#Linear hypothesis test for F-statistic and p-value outputs.
+lht(regr5,c("dem_ind=0", "educ=0"), white.adjust="hc1")
+
+
+```
+Part 2 #8. In this analysis we tested the null hypothesis that estimates of index of democracy and education are jointly equal to zero in the regression under the assumption of heteroskedasticity. The results showed a F-statistic of 215.41 and a very small, close to 0, p-value. Analyzing this further we can see that the F-test for 2 restrictions at a 1% significance level is, 215.41 > 4.61 and the p-value is less than 0.001. As such, we can conclude that we will reject the null hypothesis at less than a 0.1% significance level. This result tells us that at least one or combination of both variables are different from zero (non-zero), meaning the variables are statistically significant predictors and should not be excluded. By rejecting the null hypothesis we can conclude that we have a 1% chance that we erroneously rejected the null hypothesis.  
+
+Part 2 #9. In conclusion, to answer our question of interest, does being a democracy make a country richer?, we can say that yes, there is a statistical significant relationship between higher index of democracy scores and log of real GDP per capita. This data set may be limited in what it captures but can we can conclude this based on the data. In the big picture though we should use additional expertise, further studies and theoretical inputs to come to a conclusion that there is a causal relationship between being a democracy and income per capita. 
